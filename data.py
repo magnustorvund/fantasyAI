@@ -67,7 +67,7 @@ def get_full_gw_hist(players_df: pd.DataFrame):
     points = pd.concat(df for df in points)
 
     # join web_name
-    points = players[['id_player', 'web_name']].merge(
+    points = players[['id_player', 'web_name', 'singular_name_short']].merge(
         points,
         left_on='id_player',
         right_on='element'
