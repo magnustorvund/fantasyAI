@@ -18,6 +18,7 @@ def get_data():
     """
     # the specific request endpoint
     r = requests.get(BASE_URL + 'bootstrap-static/').json()
+    r2 = requests.get(BASE_URL + 'fixtures/').json()
     
     # get player information
     players = pd.json_normalize(r['elements'])
@@ -25,8 +26,10 @@ def get_data():
     teams = pd.json_normalize(r['teams'])
     # get position information
     positions = pd.json_normalize(r['element_types'])
+    # get fixture information
+    fixture = pd.json_normalize(r2)
 
-    return players, teams, positions
+    return players, teams, positions, fixture
 
 def get_gameweek_history(player_id):
     """
