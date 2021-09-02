@@ -78,18 +78,14 @@ def transform_id_to_team(season: str):
         season (str): A string specifying the season in the form of "2016-17"
 
     Returns:
-        A dataframe containing the team id and name
+        A dataframe containing the team id and name for the specified season
     """
     wdPATH = os.getcwd()
-    os.chdir('../notebooks')
-    wdPATH = os.getcwd()
-    df = pd.read_csv("C:/Users/magnu/OneDrive - Norges Handelshøyskole/Personlig/python_projects/fantasyAI/data_files/master_team_list.csv")
-    print(f"{wdPATH}")
-   # with open(os.path.join(wdPATH, "data_files", "master_team_list.csv")) as file:
-    #    df2 = pd.read_csv(file)
-    
-    #with open(os.path.join(PATH, "/data_files", "master_team_list.csv"), newline='') as file:
-    #    df = pd.read_csv(file)
+
+    with open(os.path.join(wdPATH, "..", "data_files", "master_team_list.csv")) as file:
+        df = pd.read_csv(file)
+
+    df = df.loc[df["season"] == season]
 
     return df
 
