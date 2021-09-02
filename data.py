@@ -86,6 +86,8 @@ def transform_id_to_team(season: str):
         df = pd.read_csv(file)
 
     df = df.loc[df["season"] == season]
+    
+    df = df[["team", "team_name"]]
 
     return df
 
