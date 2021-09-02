@@ -51,22 +51,26 @@ def get_gameweek_history(player_id):
 
 def get_season_history(player_id):
     """
-    Get stats from previous seasons for a given player_id (PID)
+    Get stats from previous seasons for given player_ids (PID)
 
     Args:
-        player_id: The player_id of the player
+        player_id: The player_id of the player(s)
 
     Returns:
-        A dataframe containing stats for each season for the specified player
+        A dataframe containing stats from previous premier league seasons for the specified players
     """
- 
+    
     # send GET request to
     # https://fantasy.premierleague.com/api/element-summary/{PID}/
-    r = requests.get(
-            BASE_URL + 'element-summary/' + str(player_id) + '/'
-    ).json()
-    
-    # extract 'history_past' data from response into dataframe
-    df = pd.json_normalize(r['history_past'])
-    
+    df = pd.DataFrame()
+    for player in player_id:
+        r = requests.get(
+            BASE_URL + 'element-summary/' + str(player) + '/'
+            ).json()
+         
+        # extract 'history_past' data from response into dataframe
+        history = pd.json_normalize(r['history_past'])
+        history["id"] = player # adding a column with the id value from the i-th index of the list
+        df = df.append(history)
+        print(f"Appended season history for player_id: {player}")
     return df
