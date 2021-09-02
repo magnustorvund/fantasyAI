@@ -5,6 +5,7 @@ import pandas as pd
 from db import get_data, get_gameweek_history, get_season_history
 from tqdm import tqdm
 import os
+import glob
 tqdm.pandas()
 
 # GLOBAL VARIABLES
@@ -91,54 +92,8 @@ def transform_id_to_team(season: str):
 
     return df
 
-def create_training_data_test():
-    """ 
-    MVP variables: 
-    - id_player
 
-    
-    Player form:
-    - ict_index
-    - bonus (so far this season)
-    - minutes (played so far this season)
-    - points_per_game
-    - form
-
-    Player ability:
-    the highest ict_index points of the previous last 3 seasons (to avoid more or less the same number compared to averages)
-    if player hasn't played in PL previously then transform now_cost into a proxy ict_index number
-
-    Fixture difficulty:
-    - team (id on the team that the player currently plays for - categorical variable)
-    - FD (use the team diffictuly rating for the next fixture for the team id that the player belongs to)
-
-    """
-    print("version 1.1")
-    # Import data
-    data = get_data()
-    current_players = data[0]
-    
-    # Player form:
-    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'points_per_game', 'form'] # should be able to change this in a config file
-    current_players = current_players[variables_to_keep]
-    
-    # Player ability: 
-    player_ids = current_players["id"]
-    player_ids = list(player_ids)
-    season_history = get_season_history(player_id=player_ids)
-    
-    player_ids_history = season_history["id"]
-    player_ids_history = list(player_ids_history)
-    
-    # Find the player ids not represented in player_ids_history
-    no_previous_season = list(set(player_ids).difference(player_ids_history))
-    
-    
-    # if player is not represented in season history: create proxy for ict_index based on current cost
-    return player_ids, season_history, current_players, no_previous_season
-
-
-def create_training_data():
+def create_training_data(season: str):
     """ 
     MVP variables: 
     - id_player
@@ -161,18 +116,27 @@ def create_training_data():
 
     """
     print("test data version 0.1 stable")
-    # Import data
-    data = get_data()
-    current_players = data[0]
+    # Import data from previous seasons
+    wdPATH = os.getcwd()
+
+    with open(os.path.join(wdPATH, "..", "data_files", "2020-21", "gws", "merged_gw.csv")) as file:
+        player_gw = pd.read_csv(file)
     
+    player_gw = player_gw.rename(columns={'value': 'now_cost'})
     # Player form + ability:
-    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'points_per_game', 'form', 'now_cost', 'event_points'] # should be able to change this in a config file
-    current_players = current_players[variables_to_keep]
+    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points', 'round'] # should be able to change this in a config file
+    players_df = player_gw[variables_to_keep]
     
     # Fixture difficulty:
     # Get upcoming gameweek:
-    fixture_df = data[3]
-    # Get upcoming gameweek:
+    with open(os.path.join(wdPATH, "..", "data_files", season, "fixtures.csv")) as file:
+        fixture_df = pd.read_csv(file)
+        
+    season_team_df = transform_id_to_team(season)
+    
+    # TO DO: Create a for loop attaching the FDR for each round to the df    
+    
+    # Attach FDR to all gw matches:
     current_gw = fixture_df.loc[fixture_df["finished"] == True]
     current_gw = current_gw.sort_values(by = ["event"], ascending=False)
     current_gw = current_gw.iloc[0][1]
@@ -220,7 +184,7 @@ def create_evaluation_data():
     current_players = data[0]
     
     # Player form + ability:
-    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'points_per_game', 'form', 'now_cost', 'event_points'] # should be able to change this in a config file
+    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points'] # should be able to change this in a config file
     current_players = current_players[variables_to_keep]
     
     # Fixture difficulty:
@@ -246,3 +210,53 @@ def create_evaluation_data():
     main_df = pd.merge(current_players, fixture_difficulty, how="left", on='team')
     
     return main_df
+
+
+##### EXPERIMENTAL ####
+
+def create_training_data_test():
+    """ 
+    MVP variables: 
+    - id_player
+
+    
+    Player form:
+    - ict_index
+    - bonus (so far this season)
+    - minutes (played so far this season)
+    - points_per_game
+    - form
+
+    Player ability:
+    the highest ict_index points of the previous last 3 seasons (to avoid more or less the same number compared to averages)
+    if player hasn't played in PL previously then transform now_cost into a proxy ict_index number
+
+    Fixture difficulty:
+    - team (id on the team that the player currently plays for - categorical variable)
+    - FD (use the team diffictuly rating for the next fixture for the team id that the player belongs to)
+
+    """
+    print("version 1.1")
+    # Import data
+    data = get_data()
+    current_players = data[0]
+    
+    # Player form:
+    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'points_per_game', 'form'] # should be able to change this in a config file
+    current_players = current_players[variables_to_keep]
+    
+    # Player ability: 
+    player_ids = current_players["id"]
+    player_ids = list(player_ids)
+    season_history = get_season_history(player_id=player_ids)
+    
+    player_ids_history = season_history["id"]
+    player_ids_history = list(player_ids_history)
+    
+    # Find the player ids not represented in player_ids_history
+    no_previous_season = list(set(player_ids).difference(player_ids_history))
+    
+    
+    # if player is not represented in season history: create proxy for ict_index based on current cost
+    return player_ids, season_history, current_players, no_previous_season
+
