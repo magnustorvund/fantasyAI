@@ -122,7 +122,7 @@ def create_training_data(season: str):
     with open(os.path.join(wdPATH, "..", "data_files", "2020-21", "gws", "merged_gw.csv")) as file:
         player_gw = pd.read_csv(file)
     
-    player_gw = player_gw.rename(columns={'value': 'now_cost'})
+    player_gw = player_gw.rename(columns={'value': 'now_cost', 'total_points': 'event_points'})
     # Player form + ability:
     variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points', 'round'] # should be able to change this in a config file
     players_df = player_gw[variables_to_keep]
