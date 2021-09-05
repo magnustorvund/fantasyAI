@@ -89,6 +89,8 @@ def transform_id_to_team(season: str):
     df = df.loc[df["season"] == season]
     
     df = df[["team", "team_name"]]
+    
+    df = df.rename(columns={'team': 'team_id'})
 
     return df
 
@@ -124,36 +126,37 @@ def create_training_data(season: str):
     
     player_gw = player_gw.rename(columns={'value': 'now_cost', 'total_points': 'event_points'})
     # Player form + ability:
-    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points', 'round'] # should be able to change this in a config file
+    variables_to_keep = ['name', 'team', 'ict_index', 'bps', 'minutes', 'now_cost', 'event_points', 'round'] # should be able to change this in a config file
     players_df = player_gw[variables_to_keep]
+    
+    players_df = players_df.rename(columns={'team': 'team_name'})
     
     # Fixture difficulty:
     # Get upcoming gameweek:
     with open(os.path.join(wdPATH, "..", "data_files", season, "fixtures.csv")) as file:
         fixture_df = pd.read_csv(file)
         
-    season_team_df = transform_id_to_team(season)
-    
-    # TO DO: Create a for loop attaching the FDR for each round to the df    
-    
-    # Attach FDR to all gw matches:
-    current_gw = fixture_df.loc[fixture_df["finished"] == True]
-    current_gw = current_gw.sort_values(by = ["event"], ascending=False)
-    current_gw = current_gw.iloc[0][1]
-    upcoming_gw = current_gw + 1
-    
-    # 1. Filter out the upcoming gameweek fixtures
-    fixture_df = fixture_df.loc[fixture_df['event'] == upcoming_gw]
+    season_team_df = transform_id_to_team(season) # df containing a name to each team associated with the id for the specified season
+    players_df = pd.merge(players_df, season_team_df, how="left", on="team_name")
+    # TO DO: Create a for loop attaching the FDR for each player for each round to the df    
     
     # 2. Separate home and away team FDR and append them into two columns
-    fixture_a = fixture_df[["team_a", "team_a_difficulty"]]
-    fixture_a = fixture_a.rename(columns={'team_a': 'team', 'team_a_difficulty': 'fdr'})
-    fixture_h = fixture_df[["team_h", "team_h_difficulty"]]
-    fixture_h = fixture_h.rename(columns={'team_h': 'team', 'team_h_difficulty': 'fdr'})
+    fixture_a = fixture_df[["team_a", "team_a_difficulty", "event"]]
+    fixture_a = fixture_a.rename(columns={'team_a': 'team', 'team_a_difficulty': 'fdr', 'event': 'round'})
+    fixture_h = fixture_df[["team_h", "team_h_difficulty", "event"]]
+    fixture_h = fixture_h.rename(columns={'team_h': 'team', 'team_h_difficulty': 'fdr', 'event': 'round'})
     fixture_difficulty = fixture_a.append(fixture_h)
     
+    fixture_difficulty = fixture_difficulty.rename(columns={'team': 'team_id'})
+    
     # 3. Merge the FDR to the main dataframe
-    main_df = pd.merge(current_players, fixture_difficulty, how="left", on='team')
+    main_df = pd.merge(players_df, fixture_difficulty, how="left", on=['team_id', "round"])
+    
+    # 4. Remove team and team_id as a feature to predict on to create a more generalized dataset to train on. 
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'team_id', 'fdr', 'event_points'] # should be able to change this in a config file
+    main_df = main_df[variables_to_keep]
+
+    return main_df
 
 
 def create_evaluation_data():
