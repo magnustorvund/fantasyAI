@@ -13,17 +13,26 @@
     - 
 """
     
+from lightgbm.sklearn import LGBMModel, LGBMRegressor
 from numpy.core.numeric import full
 from data import create_training_data
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import log_loss
 
+import numpy as np
+import pandas as pd
 import lightgbm as lgb
+
+import optuna
+from optuna.integration import LightGBMPruningCallback
+
     
 #def run_data_prep(season: str):
           
 
-def run_model_training(season: str):
+def run_model_training_quick(season: str):
     
     split = 0.2
         
@@ -75,3 +84,87 @@ def run_model_training(season: str):
     print(f'The RMSE of prediction is: {rmse_test}')
     
     return model
+
+def objective(trial: optuna.Trial, X, y):
+    
+    param_grid = {
+        #         "device_type": trial.suggest_categorical("device_type", ['gpu']),
+        "n_estimators": trial.suggest_categorical("n_estimators", [10000]),
+        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.05),
+        "num_leaves": trial.suggest_int("num_leaves", 20, 3000, step=20),
+        "max_depth": trial.suggest_int("max_depth", 3, 12),
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 200, 10000, step=100),
+        "max_bin": trial.suggest_int("max_bin", 200, 300),
+        "lambda_l1": trial.suggest_int("lambda_l1", 0, 100, step=5),
+        "lambda_l2": trial.suggest_int("lambda_l2", 0, 100, step=5),
+        "min_gain_to_split": trial.suggest_float("min_gain_to_split", 0, 15),
+        "bagging_fraction": trial.suggest_float(
+            "bagging_fraction", 0.2, 0.9, step=0.1
+        ),
+        "bagging_freq": trial.suggest_categorical("bagging_freq", [1]),
+        "feature_fraction": trial.suggest_float(
+            "feature_fraction", 0.2, 0.9, step=0.1
+        ),
+    }
+
+    cv = KFold(n_splits=5, shuffle=True, random_state=1121218)
+
+    cv_scores = np.empty(5)
+    for idx, (train_idx, test_idx) in enumerate(cv.split(X, y)):
+        # Define DV and IVs:
+        X_train_full, X_test_full = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        
+        # Drop the name column to avoid using it as a feature
+        X_train = X_train_full.drop(X_train_full.columns[0], axis=1)
+        X_test = X_test_full.drop(X_test_full.columns[0], axis=1)
+    
+
+        model = LGBMRegressor(**param_grid)
+        model.fit(
+            X_train,
+            y_train,
+            eval_set=[(X_test, y_test)],
+            eval_metric="l2", # Using Mean Squared Error as a metric (l2 in light GBM terms)
+            early_stopping_rounds=100,
+            callbacks=[
+                LightGBMPruningCallback(trial, "l2")
+            ],  # Add a pruning callback
+        )
+
+        preds = model.predict(X_test)
+        cv_scores[idx] = mean_squared_error(y_test, preds)
+
+        print(f"iteration{idx}")
+    
+    print(f"for loop finished!")
+
+    return np.mean(cv_scores)
+
+
+def run_model_training(df: pd.DataFrame):
+    # df: create_training_set() output
+    
+    # 0. Load and prepare training data
+    X = df.drop(["event_points"], axis = 1)
+    y = df["event_points"]
+    
+    # 1. Hyperparameter tuning
+    study = optuna.create_study(direction="minimize", study_name="LGBM Regressor")
+    func = lambda trial: objective(trial, X, y)
+    study.optimize(func, n_trials=20)
+    
+    print("Study objective finished!")
+    
+    print(f"\tBest value (mse): {study.best_value:.5f}")
+    print(f"\tBest params:")
+
+    for key, value in study.best_params.items():
+        print(f"\t\t{key}: {value}")
+        
+    # 2. Train model with optimal hyperparameters:
+    best_hyperparams = study.best_params
+    
+    return best_hyperparams
+    
+    
