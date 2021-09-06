@@ -39,7 +39,7 @@ def run_model_training_quick(season: str):
         
     full_df = create_training_data(season)
     
-    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'event_points']
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr', 'event_points']
     full_df = full_df[variables_to_keep]
       
     train_df, test_df = train_test_split(full_df, test_size=split)
@@ -156,7 +156,7 @@ def objective(trial: optuna.Trial, X, y):
 
 def run_hyperparameter_tuning(df: pd.DataFrame):
     # df: create_training_set() output
-    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'event_points']
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr', 'event_points']
     df = df[variables_to_keep]
     # 0. Load and prepare training data
     X = df.drop(["event_points"], axis = 1)
@@ -184,7 +184,7 @@ def run_model_training(best_hyperparams, df):
     
     split = 0.3
     
-    variables_to_keep = ['ict_index', 'bps', 'minutes', 'now_cost', "event_points"]
+    variables_to_keep = ['ict_index', 'bps', 'minutes', 'now_cost', "fdr", "event_points"]
     full_df = df[variables_to_keep]
         
     train_df, test_df = train_test_split(full_df, test_size=split)
@@ -224,7 +224,7 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str):
     
     model = pickle.load(open(model_name,'rb'))
     
-    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost']
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr']
     pred_df = pred_df[variables_to_keep]
     
     X_eval = pred_df.drop(["name"], axis = 1)
