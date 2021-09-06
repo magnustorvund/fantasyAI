@@ -15,6 +15,7 @@
     
 from lightgbm.sklearn import LGBMModel, LGBMRegressor
 from numpy.core.numeric import full
+from sklearn import model_selection
 from data import create_training_data
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold, KFold
@@ -80,8 +81,8 @@ def run_model_training_quick(season: str):
     # predict
     y_pred = model.predict(X_test, num_iteration=model.best_iteration)
     # eval
-    rmse_test = mean_squared_error(y_test, y_pred) ** 0.5
-    print(f'The RMSE of prediction is: {rmse_test}')
+    mse_test = mean_squared_error(y_test, y_pred) ** 0.5
+    print(f'The RMSE of prediction is: {mse_test}')
     
     return model
 
@@ -90,7 +91,7 @@ def objective(trial: optuna.Trial, X, y):
     param_grid = {
         #         "device_type": trial.suggest_categorical("device_type", ['gpu']),
         "n_estimators": trial.suggest_categorical("n_estimators", [10000]),
-        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.05),
+        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.05), # adjust this for speed increase
         "num_leaves": trial.suggest_int("num_leaves", 20, 3000, step=20),
         "max_depth": trial.suggest_int("max_depth", 3, 12),
         "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 200, 10000, step=100),
@@ -105,6 +106,7 @@ def objective(trial: optuna.Trial, X, y):
         "feature_fraction": trial.suggest_float(
             "feature_fraction", 0.2, 0.9, step=0.1
         ),
+
     }
 
     cv = KFold(n_splits=5, shuffle=True, random_state=1121218)
@@ -142,7 +144,7 @@ def objective(trial: optuna.Trial, X, y):
     return np.mean(cv_scores)
 
 
-def run_model_training(df: pd.DataFrame):
+def run_hyperparameter_tuning(df: pd.DataFrame):
     # df: create_training_set() output
     
     # 0. Load and prepare training data
@@ -162,9 +164,46 @@ def run_model_training(df: pd.DataFrame):
     for key, value in study.best_params.items():
         print(f"\t\t{key}: {value}")
         
-    # 2. Train model with optimal hyperparameters:
     best_hyperparams = study.best_params
     
     return best_hyperparams
+
+
+def run_model_training(best_hyperparams, df):
     
+    split = 0.3
+        
+    full_df = df
+        
+    train_df, test_df = train_test_split(full_df, test_size=split)
     
+    # Define DV and IVs:
+    y_train = train_df["event_points"]
+    y_test = test_df["event_points"]
+    X_train = train_df.drop(["name","event_points"], axis = 1)
+    X_test = test_df.drop(["name","event_points"], axis = 1)
+    
+    # Create LGB dataset:
+    lgb_train = lgb.Dataset(X_train, y_train)
+    lgb_test = lgb.Dataset(X_test, y_test, reference=lgb_train)
+    
+    model = lgb.train(best_hyperparams,
+                    lgb_train,
+                    num_boost_round=100, # adjust this for speed increase
+                    valid_sets=lgb_test)
+                    
+                
+                    
+
+    print('Saving model...')
+    # save model to file
+    model.save_model('model.txt')
+
+    print('Starting predicting...')
+    # predict
+    y_pred = model.predict(X_test, num_iteration=model.best_iteration)
+    # eval
+    mse_test = mean_squared_error(y_test, y_pred) ** 0.5
+    print(f'The MSE of prediction is: {mse_test}')
+    
+    return model, mse_test
