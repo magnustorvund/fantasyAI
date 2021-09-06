@@ -187,7 +187,7 @@ def create_evaluation_data():
     current_players = data[0]
     
     # Player form + ability:
-    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points'] # should be able to change this in a config file
+    variables_to_keep = ['web_name', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points'] # should be able to change this in a config file
     current_players = current_players[variables_to_keep]
     
     # Fixture difficulty:
@@ -211,6 +211,10 @@ def create_evaluation_data():
     
     # 3. Merge the FDR to the main dataframe
     main_df = pd.merge(current_players, fixture_difficulty, how="left", on='team')
+    
+    main_df = main_df.rename(columns={'web_name': 'name'})
+    
+    main_df['ict_index'] = main_df['ict_index'].astype('float')
     
     return main_df
 

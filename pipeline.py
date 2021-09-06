@@ -13,15 +13,15 @@
     - 
 """
     
-from lightgbm.sklearn import LGBMModel, LGBMRegressor
-from numpy.core.numeric import full
-from sklearn import model_selection
+from lightgbm.sklearn import LGBMRegressor
 from data import create_training_data
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import log_loss
 
+import pickle
+import copy
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -38,7 +38,10 @@ def run_model_training_quick(season: str):
     split = 0.2
         
     full_df = create_training_data(season)
-        
+    
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'event_points']
+    full_df = full_df[variables_to_keep]
+      
     train_df, test_df = train_test_split(full_df, test_size=split)
     
     # Define DV and IVs:
@@ -69,13 +72,13 @@ def run_model_training_quick(season: str):
 
     model = lgb.train(params,
                     lgb_train,
-                    num_boost_round=20,
+                    num_boost_round=5,
                     valid_sets=lgb_test,
                     early_stopping_rounds=100)
 
     print('Saving model...')
     # save model to file
-    model.save_model('model.txt')
+    #model.save_model('model.txt')
 
     print('Starting predicting...')
     # predict
@@ -83,6 +86,13 @@ def run_model_training_quick(season: str):
     # eval
     mse_test = mean_squared_error(y_test, y_pred) ** 0.5
     print(f'The RMSE of prediction is: {mse_test}')
+    
+    # Saving the model
+    now = datetime.now()
+    time = now.strftime("%Y_%d_%m_%H_%M")
+    name = "model_" + time
+    filename = name + '.pkl'
+    pickle.dump(model, open(filename, 'wb'))
     
     return model
 
@@ -146,7 +156,8 @@ def objective(trial: optuna.Trial, X, y):
 
 def run_hyperparameter_tuning(df: pd.DataFrame):
     # df: create_training_set() output
-    
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'event_points']
+    df = df[variables_to_keep]
     # 0. Load and prepare training data
     X = df.drop(["event_points"], axis = 1)
     y = df["event_points"]
@@ -172,16 +183,17 @@ def run_hyperparameter_tuning(df: pd.DataFrame):
 def run_model_training(best_hyperparams, df):
     
     split = 0.3
-        
-    full_df = df
+    
+    variables_to_keep = ['ict_index', 'bps', 'minutes', 'now_cost', "event_points"]
+    full_df = df[variables_to_keep]
         
     train_df, test_df = train_test_split(full_df, test_size=split)
     
     # Define DV and IVs:
     y_train = train_df["event_points"]
     y_test = test_df["event_points"]
-    X_train = train_df.drop(["name","event_points"], axis = 1)
-    X_test = test_df.drop(["name","event_points"], axis = 1)
+    X_train = train_df.drop(["event_points"], axis = 1)
+    X_test = test_df.drop(["event_points"], axis = 1)
     
     # Create LGB dataset:
     lgb_train = lgb.Dataset(X_train, y_train)
@@ -192,13 +204,13 @@ def run_model_training(best_hyperparams, df):
                     num_boost_round=100, # adjust this for speed increase
                     valid_sets=lgb_test)
                     
-                
-                    
-
     print('Saving model...')
-    # save model to file
-    model.save_model('model.txt')
-
+    now = datetime.now()
+    time = now.strftime("%Y_%d_%m_%H_%M")
+    name = "model_" + time
+    filename = name + '.pkl'
+    pickle.dump(model, open(filename, 'wb'))
+    
     print('Starting predicting...')
     # predict
     y_pred = model.predict(X_test, num_iteration=model.best_iteration)
@@ -207,3 +219,25 @@ def run_model_training(best_hyperparams, df):
     print(f'The MSE of prediction is: {mse_test}')
     
     return model, mse_test
+
+def run_predictions(pred_df: pd.DataFrame, model_name: str):
+    
+    model = pickle.load(open(model_name,'rb'))
+    
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost']
+    pred_df = pred_df[variables_to_keep]
+    
+    X_eval = pred_df.drop(["name"], axis = 1)
+    
+    preds = model.predict(X_eval, num_iteration=model.best_iteration)
+    
+    output_df = copy.copy(pred_df)
+    output_df["predicted_points"] = preds
+    
+    output_df = output_df.sort_values(by=["predicted_points"], ascending=False)
+    
+    
+    return output_df
+
+
+
