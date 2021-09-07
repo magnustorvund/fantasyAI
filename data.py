@@ -2,10 +2,9 @@
 This python file formats the data from db.py
 """
 import pandas as pd
-from db import get_data, get_gameweek_history, get_season_history
+from db import get_data, get_gameweek_history
 from tqdm import tqdm
 import os
-import glob
 tqdm.pandas()
 
 # GLOBAL VARIABLES
@@ -117,7 +116,7 @@ def create_training_data(season: str):
     - FD (use the team diffictuly rating for the next fixture for the team id that the player belongs to)
 
     """
-    print("test data version 0.1 stable")
+    print("create training data version 1.0 stable")
     # Import data from previous seasons
     wdPATH = os.getcwd()
 
@@ -217,53 +216,3 @@ def create_evaluation_data():
     main_df['ict_index'] = main_df['ict_index'].astype('float')
     
     return main_df
-
-
-##### EXPERIMENTAL ####
-
-def create_training_data_test():
-    """ 
-    MVP variables: 
-    - id_player
-
-    
-    Player form:
-    - ict_index
-    - bonus (so far this season)
-    - minutes (played so far this season)
-    - points_per_game
-    - form
-
-    Player ability:
-    the highest ict_index points of the previous last 3 seasons (to avoid more or less the same number compared to averages)
-    if player hasn't played in PL previously then transform now_cost into a proxy ict_index number
-
-    Fixture difficulty:
-    - team (id on the team that the player currently plays for - categorical variable)
-    - FD (use the team diffictuly rating for the next fixture for the team id that the player belongs to)
-
-    """
-    print("version 1.1")
-    # Import data
-    data = get_data()
-    current_players = data[0]
-    
-    # Player form:
-    variables_to_keep = ['id', 'team', 'ict_index', 'bps', 'minutes', 'points_per_game', 'form'] # should be able to change this in a config file
-    current_players = current_players[variables_to_keep]
-    
-    # Player ability: 
-    player_ids = current_players["id"]
-    player_ids = list(player_ids)
-    season_history = get_season_history(player_id=player_ids)
-    
-    player_ids_history = season_history["id"]
-    player_ids_history = list(player_ids_history)
-    
-    # Find the player ids not represented in player_ids_history
-    no_previous_season = list(set(player_ids).difference(player_ids_history))
-    
-    
-    # if player is not represented in season history: create proxy for ict_index based on current cost
-    return player_ids, season_history, current_players, no_previous_season
-

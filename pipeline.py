@@ -1,7 +1,7 @@
 """
-    The goal for the prediction model is to predict as accurately as possible the points each player will get in next (1,3, 5 or 10 i.e.) gameweeks (regression)
+    The goal for the prediction model is to predict as accurately as possible the players with highest points in next gameweek (regression). 
     Therefore, the model needs to consider the differences each position gets points for. 
-    This can either be solved by a) one model (hard), or b) run 1 model specifically designed for each position. 
+    This can either be solved by a) one model, or b) run 1 model specifically designed for each position. 
     Ideas to features in the prediction model:
     To mitigate the underlying random nature of football an idea is to rather use expected than actual statistics (through weights, which could be estimated by another model)
     - shots on target
@@ -14,14 +14,18 @@
 """
     
 from lightgbm.sklearn import LGBMRegressor
-from data import create_training_data
+
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 
+from datetime import datetime
+
+from data import create_evaluation_data, create_training_data
+
 import pickle
 import copy
-from datetime import datetime
+
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -29,11 +33,35 @@ import lightgbm as lgb
 import optuna
 from optuna.integration import LightGBMPruningCallback
 
+def get_data_for_pipeline(training_set_season = "2020-21"):
     
-#def run_data_prep(season: str):
-          
+    """
+    Get the datasets needed for running the pipeline. 
+    
+    Args:
+        season (str): A string specifying the season to train the model on in the form of i.e. "2020-21"
 
-def run_model_training_quick(season: str):
+    Returns:
+        Two dataframes, one for training the model and one for predicting the current players next gameweek points
+    """
+    
+    training_df = create_training_data(season=training_set_season)
+    evaluation_df = create_evaluation_data()
+    
+    return training_df, evaluation_df
+
+
+def run_model_training_quick(season: "2020-21"):
+    
+    """
+    Run the light GBM model quick to allow for quick testing of variables etc.
+
+    Args:
+        season (str): A string specifying the season in the form of "2020-21"
+
+    Returns:
+        A dataframe containing the team id and name for the specified season
+    """
     
     split = 0.2
         
@@ -98,6 +126,18 @@ def run_model_training_quick(season: str):
 
 def objective(trial: optuna.Trial, X, y):
     
+    """
+    The objective function for tuning the Light GBM hyperparameters with Optuna.
+
+    Args:
+        trial (optuna.Trial): An optuna trial object from the study.optimize function.
+        X: The features in the light GBM model
+        y: The dependent variable
+
+    Returns:
+        MSE scores from the 5-fold cross validation
+    """
+    
     param_grid = {
         #         "device_type": trial.suggest_categorical("device_type", ['gpu']),
         "n_estimators": trial.suggest_categorical("n_estimators", [10000]),
@@ -155,6 +195,17 @@ def objective(trial: optuna.Trial, X, y):
 
 
 def run_hyperparameter_tuning(df: pd.DataFrame):
+    
+    """
+    A function for creating the optuna objects and run the hyperparameter tuning
+
+    Args:
+        df (pd.DataFrame): The training dataframe from get_data_for_pipeline()
+
+    Returns:
+        A dictionary containing the best hyperparameters from the hyperparameter tuning
+    """
+    
     # df: create_training_set() output
     variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr', 'event_points']
     df = df[variables_to_keep]
@@ -182,7 +233,18 @@ def run_hyperparameter_tuning(df: pd.DataFrame):
 
 def run_model_training(best_hyperparams, df):
     
-    split = 0.3
+    """
+    Run the Light GBM model training
+
+    Args:
+        best_hyperparams: A dictionary containing hyperparameters for Light GBM
+        df: The training dataframe from get_data_for_pipeline()
+
+    Returns:
+        The model and test MSE scores
+    """
+    
+    split = 0.2
     
     variables_to_keep = ['ict_index', 'bps', 'minutes', 'now_cost', "fdr", "event_points"]
     full_df = df[variables_to_keep]
@@ -221,6 +283,17 @@ def run_model_training(best_hyperparams, df):
     return model, mse_test
 
 def run_predictions(pred_df: pd.DataFrame, model_name: str):
+    
+    """
+    Run the predictions for the next gameweek
+
+    Args:
+        pred_df (pd.DataFrame): The evaluation dataframe with players you want predictions for
+        model_name (str): The name of the trained model ("model_year_month_hour_minute")
+
+    Returns:
+        A dataframe containing predictions for all current premier league players for next gameweek
+    """
     
     model = pickle.load(open(model_name,'rb'))
     
