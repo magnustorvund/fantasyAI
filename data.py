@@ -93,6 +93,50 @@ def transform_id_to_team(season: str):
 
     return df
 
+def create_data_for_exploration(season: str):
+    """
+    Get unfiltered data from a full season for data exploration
+
+    Args:
+        season (str): A string specifying the season in the form of "2020-21"
+
+    Returns:
+        A dataframe containing the team id and name for the specified season
+    """
+    print("create exploration data version 1.0")
+    # Import data from previous seasons
+    wdPATH = os.getcwd()
+
+    with open(os.path.join(wdPATH, "..", "data_files", "2020-21", "gws", "merged_gw.csv")) as file:
+        player_gw = pd.read_csv(file)
+    
+    player_gw = player_gw.rename(columns={'value': 'now_cost', 'total_points': 'event_points'})
+
+    players_df = player_gw.rename(columns={'team': 'team_name'})
+    
+    # Fixture difficulty:
+    # Get upcoming gameweek:
+    with open(os.path.join(wdPATH, "..", "data_files", season, "fixtures.csv")) as file:
+        fixture_df = pd.read_csv(file)
+        
+    season_team_df = transform_id_to_team(season) # df containing a name to each team associated with the id for the specified season
+    players_df = pd.merge(players_df, season_team_df, how="left", on="team_name")
+    # TO DO: Create a for loop attaching the FDR for each player for each round to the df    
+    
+    # 2. Separate home and away team FDR and append them into two columns
+    fixture_a = fixture_df[["team_a", "team_a_difficulty", "event"]]
+    fixture_a = fixture_a.rename(columns={'team_a': 'team', 'team_a_difficulty': 'fdr', 'event': 'round'})
+    fixture_h = fixture_df[["team_h", "team_h_difficulty", "event"]]
+    fixture_h = fixture_h.rename(columns={'team_h': 'team', 'team_h_difficulty': 'fdr', 'event': 'round'})
+    fixture_difficulty = fixture_a.append(fixture_h)
+    
+    fixture_difficulty = fixture_difficulty.rename(columns={'team': 'team_id'})
+    
+    # 3. Merge the FDR to the main dataframe
+    main_df = pd.merge(players_df, fixture_difficulty, how="left", on=['team_id', "round"])
+
+    return main_df
+
 
 def create_training_data(season: str):
     """ 
