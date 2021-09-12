@@ -13,6 +13,7 @@
     - 
 """
     
+from textwrap import indent
 from lightgbm.sklearn import LGBMRegressor
 
 from sklearn.model_selection import train_test_split
@@ -25,6 +26,7 @@ from data import create_evaluation_data, create_training_data
 
 import pickle
 import copy
+import json
 
 import numpy as np
 import pandas as pd
@@ -112,7 +114,7 @@ def run_model_training_quick(season: "2020-21"):
     # predict
     y_pred = model.predict(X_test, num_iteration=model.best_iteration)
     # eval
-    mse_test = mean_squared_error(y_test, y_pred) ** 0.5
+    mse_test = mean_squared_error(y_test, y_pred)
     print(f'The RMSE of prediction is: {mse_test}')
     
     # Saving the model
@@ -228,6 +230,13 @@ def run_hyperparameter_tuning(df: pd.DataFrame):
         
     best_hyperparams = study.best_params
     
+    print('Saving optimal parameteres...')
+    now = datetime.now()
+    time = now.strftime("%Y_%d_%m_%H_%M")
+    name = "parameters_" + time
+    filename = name + '.pkl'
+    pickle.dump(best_hyperparams, open(filename, 'wb'))
+    
     return best_hyperparams
 
 
@@ -243,6 +252,7 @@ def run_model_training(best_hyperparams, df):
     Returns:
         The model and test MSE scores
     """
+    best_hyperparams["metric"] = "l2"
     
     split = 0.2
     
@@ -261,10 +271,16 @@ def run_model_training(best_hyperparams, df):
     lgb_train = lgb.Dataset(X_train, y_train)
     lgb_test = lgb.Dataset(X_test, y_test, reference=lgb_train)
     
+    # Dictionary for train MSE results
+    train_results = {}
+    
     model = lgb.train(best_hyperparams,
                     lgb_train,
-                    num_boost_round=100, # adjust this for speed increase
-                    valid_sets=lgb_test)
+                    num_boost_round=20000, # adjust this for speed increase
+                    valid_sets=[lgb_train, lgb_test],
+                    early_stopping_rounds=5000,
+                    evals_result=train_results
+                    )
                     
     print('Saving model...')
     now = datetime.now()
@@ -277,10 +293,17 @@ def run_model_training(best_hyperparams, df):
     # predict
     y_pred = model.predict(X_test, num_iteration=model.best_iteration)
     # eval
-    mse_test = mean_squared_error(y_test, y_pred) ** 0.5
+    mse_test = mean_squared_error(y_test, y_pred)
     print(f'The MSE of prediction is: {mse_test}')
+    mse_test_dict = {'test_mse': mse_test}
     
-    return model, mse_test
+    with open('mse_test_dict.json', 'w', encoding='utf-8') as f:
+        json.dump(mse_test_dict, f, ensure_ascii=False, indent=4)
+    
+    with open('train_results.json', 'w', encoding='utf-8') as f:
+        json.dump(train_results, f, ensure_ascii=False, indent=4)
+    
+    return model, mse_test, train_results
 
 def run_predictions(pred_df: pd.DataFrame, model_name: str):
     

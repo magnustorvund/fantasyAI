@@ -7,6 +7,13 @@ from tqdm import tqdm
 import os
 tqdm.pandas()
 
+"""
+    # TO DO:
+       - Transform minutes to avergage minutes per match so far this season both for evaluation and create_training_data
+       - Transform evaluation data ict_index, bps, and now cost to current (filter out the rows where gw or round == current gameweek)
+       
+"""
+
 # GLOBAL VARIABLES
 cdPATH = os.getcwd()
 
@@ -229,8 +236,9 @@ def create_evaluation_data():
     data = get_data()
     current_players = data[0]
     
+    
     # Player form + ability:
-    variables_to_keep = ['web_name', 'team', 'ict_index', 'bps', 'minutes', 'form', 'now_cost', 'event_points'] # should be able to change this in a config file
+    variables_to_keep = ['web_name', 'team', 'ict_index', 'bps', 'minutes', 'now_cost', 'event_points'] # should be able to change this in a config file
     current_players = current_players[variables_to_keep]
     
     # Fixture difficulty:
@@ -254,6 +262,79 @@ def create_evaluation_data():
     
     # 3. Merge the FDR to the main dataframe
     main_df = pd.merge(current_players, fixture_difficulty, how="left", on='team')
+    
+    main_df = main_df.rename(columns={'web_name': 'name'})
+    
+    main_df['ict_index'] = main_df['ict_index'].astype('float')
+    
+    return main_df
+
+
+def create_evaluation_data2():
+    """ 
+    MVP variables: 
+    - id_player
+
+    
+    Player form:
+    - ict_index (current)
+    - bps (current)
+    - minutes (average minutes played per match this season) - !!!TO DO
+    - fdr (for next game)
+    - now_cost (current)
+    
+    Player ability:
+    the highest ict_index points of the previous last 3 seasons (to avoid more or less the same number compared to averages)
+    if player hasn't played in PL previously then transform now_cost into a proxy ict_index number
+
+    Fixture difficulty:
+    - team (id on the team that the player currently plays for - categorical variable)
+    - FDR (use the team diffictuly rating for the next fixture for the team id that the player belongs to)
+
+    """
+    print("test data version 0.1 stable")
+    # Import data
+    db_data = get_data()
+    data = db_data[0]
+    current_players = data[['id']]
+    current_players = tuple(current_players['id'])
+    
+    df = pd.DataFrame()
+    
+    for player in current_players:
+        player_gw = get_gameweek_history(player)
+        player_gw['id'] = player
+        df = df.append(player_gw)
+    
+    df = df.rename(columns={'total_points': 'event_points', 'value': 'now_cost'})
+    extra = data[['id', 'team', 'web_name']]
+    df = pd.merge(df, extra, how='left', on='id')
+    
+    # Player form + ability:
+    variables_to_keep = ['web_name', 'team', 'ict_index', 'bps', 'minutes', 'now_cost', 'event_points'] # should be able to change this in a config file
+    current_players_df = df[variables_to_keep]
+    
+    # Fixture difficulty:
+    # Get upcoming gameweek:
+    fixture_df = db_data[3]
+    # Get upcoming gameweek:
+    current_gw = fixture_df.loc[fixture_df["finished"] == True]
+    current_gw = current_gw.sort_values(by = ["event"], ascending=False)
+    current_gw = current_gw.iloc[0][1]
+    upcoming_gw = current_gw + 1
+    
+    # 1. Filter out the upcoming gameweek fixtures
+    fixture_df = fixture_df.loc[fixture_df['event'] == upcoming_gw]
+    
+    # 2. Separate home and away team FDR and append them into two columns
+    fixture_a = fixture_df[["team_a", "team_a_difficulty"]]
+    fixture_a = fixture_a.rename(columns={'team_a': 'team', 'team_a_difficulty': 'fdr'})
+    fixture_h = fixture_df[["team_h", "team_h_difficulty"]]
+    fixture_h = fixture_h.rename(columns={'team_h': 'team', 'team_h_difficulty': 'fdr'})
+    fixture_difficulty = fixture_a.append(fixture_h)
+    
+    # 3. Merge the FDR to the main dataframe
+    main_df = pd.merge(current_players_df, fixture_difficulty, how="left", on='team')
     
     main_df = main_df.rename(columns={'web_name': 'name'})
     
