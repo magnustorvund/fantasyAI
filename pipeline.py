@@ -330,8 +330,16 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str):
     output_df = copy.copy(pred_df)
     output_df["predicted_points"] = preds
     
+    
     output_df = output_df.sort_values(by=["predicted_points"], ascending=False)
     
+    # saving the dataframe to CSV for later review after the next GW
+    print('Saving model...')
+    now = datetime.now()
+    time = now.strftime("%Y_%d_%m_%H_%M")
+    name = "predictions_" + time
+    filename = name + '.csv'
+    output_df.to_csv(filename, encoding='utf-8')
     
     return output_df
 
