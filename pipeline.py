@@ -1,5 +1,5 @@
 """
-    The goal for the prediction model is to predict as accurately as possible the players with highest points in next gameweek (regression). 
+    The goal for the prediction model is to predict as accurately as possible the next gw points for all players in the current season.
     Therefore, the model needs to consider the differences each position gets points for. 
     This can either be solved by a) one model, or b) run 1 model specifically designed for each position. 
     Ideas to features in the prediction model:
@@ -68,9 +68,6 @@ def run_model_training_quick(season: "2020-21"):
     split = 0.2
         
     full_df = create_training_data(season)
-    
-    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr', 'event_points']
-    full_df = full_df[variables_to_keep]
       
     train_df, test_df = train_test_split(full_df, test_size=split)
     
@@ -209,7 +206,7 @@ def run_hyperparameter_tuning(df: pd.DataFrame):
     """
     
     # df: create_training_set() output
-    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr', 'event_points']
+    variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     df = df[variables_to_keep]
     # 0. Load and prepare training data
     X = df.drop(["event_points"], axis = 1)
@@ -256,7 +253,7 @@ def run_model_training(best_hyperparams, df):
     
     split = 0.2
     
-    variables_to_keep = ['ict_index', 'bps', 'minutes', 'now_cost', "fdr", "event_points"]
+    variables_to_keep = ['ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     full_df = df[variables_to_keep]
         
     train_df, test_df = train_test_split(full_df, test_size=split)
@@ -320,7 +317,7 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str):
     
     model = pickle.load(open(model_name,'rb'))
     
-    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'fdr']
+    variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     pred_df = pred_df[variables_to_keep]
     
     X_eval = pred_df.drop(["name"], axis = 1)
