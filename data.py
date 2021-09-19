@@ -286,6 +286,8 @@ def create_training_data(season: str):
     columns_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'fdr', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     main_df = output_df[columns_to_keep]
     
+    main_df = main_df.reset_index(drop=True)
+    
     print("training set made!")
     
     return main_df
@@ -409,6 +411,8 @@ def create_evaluation_data2(session: str):
     
     final_variables_to_keep = ['name', 'ict_index', 'bps', 'fdr', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     output_df = output_df[final_variables_to_keep]
+    
+    output_df = output_df.reset_index(drop=True)
     
     return output_df
 

@@ -302,7 +302,7 @@ def run_model_training(best_hyperparams, df):
     
     return model, mse_test, train_results
 
-def run_predictions(pred_df: pd.DataFrame, model_name: str):
+def run_predictions(pred_df: pd.DataFrame, model_name: str, used_features: list):
     
     """
     Run the predictions for the next gameweek
@@ -317,7 +317,8 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str):
     
     model = pickle.load(open(model_name,'rb'))
     
-    variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    #variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    variables_to_keep = used_features
     pred_df = pred_df[variables_to_keep]
     
     X_eval = pred_df.drop(["name"], axis = 1)
