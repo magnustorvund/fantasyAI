@@ -293,7 +293,7 @@ def create_training_data(season: str):
     return main_df
 
 
-def create_evaluation_data2(session: str):
+def create_evaluation_data2(session: str, gameweek_to_evaluate: int = 4):
     """ 
     session (str): "test" or "pred"
     
@@ -354,7 +354,7 @@ def create_evaluation_data2(session: str):
     # Test
     if session == "pred":
         main_df = pred_fdr(current_players_df, fixture_df, upcoming_gw)
-        print(f"upcoming gw to predict for is {upcoming_gw}")
+        print(f"The upcoming GW to predict for is {upcoming_gw}")
         main_df['avg_minutes'] = 0
         main_df['ict_index_change'] = 0
         main_df['bps_change'] = 0
@@ -374,7 +374,8 @@ def create_evaluation_data2(session: str):
         output_df = output_df.drop_duplicates(subset=["name"], keep="last") # keeping only the row with the latest difference stats
         
     elif session == "test":
-        main_df = test_fdr(current_players_df, fixture_df, current_gw)
+        main_df = test_fdr(current_players_df, fixture_df, gameweek_to_evaluate)
+        current_gw = gameweek_to_evaluate
         print(f"current_gw to get data test for is {current_gw}")
         
         main_df['avg_minutes'] = 0

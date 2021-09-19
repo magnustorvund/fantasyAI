@@ -23,6 +23,7 @@ from sklearn.metrics import mean_squared_error
 from datetime import datetime
 
 from data import create_evaluation_data, create_training_data
+from db import get_data, get_gameweek_history
 
 import pickle
 import copy
@@ -157,6 +158,8 @@ def objective(trial: optuna.Trial, X, y):
         ),
 
     }
+    
+    cat_feature =  ["fdr"]
 
     cv = KFold(n_splits=5, shuffle=True, random_state=1121218)
 
@@ -178,6 +181,7 @@ def objective(trial: optuna.Trial, X, y):
             eval_set=[(X_test, y_test)],
             eval_metric="l2", # Using Mean Squared Error as a metric (l2 in light GBM terms)
             early_stopping_rounds=100,
+            categorical_feature=cat_feature,
             callbacks=[
                 LightGBMPruningCallback(trial, "l2")
             ],  # Add a pruning callback
@@ -206,7 +210,7 @@ def run_hyperparameter_tuning(df: pd.DataFrame):
     """
     
     # df: create_training_set() output
-    variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    variables_to_keep = ['name', 'ict_index', 'bps', 'fdr', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     df = df[variables_to_keep]
     # 0. Load and prepare training data
     X = df.drop(["event_points"], axis = 1)
@@ -251,9 +255,11 @@ def run_model_training(best_hyperparams, df):
     """
     best_hyperparams["metric"] = "l2"
     
+    cat_features = ["fdr"]
+    
     split = 0.2
     
-    variables_to_keep = ['ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    variables_to_keep = ['ict_index', 'bps', 'now_cost', 'fdr', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     full_df = df[variables_to_keep]
         
     train_df, test_df = train_test_split(full_df, test_size=split)
@@ -265,8 +271,8 @@ def run_model_training(best_hyperparams, df):
     X_test = test_df.drop(["event_points"], axis = 1)
     
     # Create LGB dataset:
-    lgb_train = lgb.Dataset(X_train, y_train)
-    lgb_test = lgb.Dataset(X_test, y_test, reference=lgb_train)
+    lgb_train = lgb.Dataset(X_train, y_train, categorical_feature=cat_features) # remove categor
+    lgb_test = lgb.Dataset(X_test, y_test, reference=lgb_train, categorical_feature=cat_features)
     
     # Dictionary for train MSE results
     train_results = {}
@@ -302,7 +308,7 @@ def run_model_training(best_hyperparams, df):
     
     return model, mse_test, train_results
 
-def run_predictions(pred_df: pd.DataFrame, model_name: str, used_features: list):
+def run_predictions(pred_df: pd.DataFrame, model_name: str, session: str, test_gw = int, used_features = list):
     
     """
     Run the predictions for the next gameweek
@@ -310,6 +316,8 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str, used_features: list)
     Args:
         pred_df (pd.DataFrame): The evaluation dataframe with players you want predictions for
         model_name (str): The name of the trained model ("model_year_month_hour_minute")
+        session (str): Whether you want to pred or test
+        test_gw (int): The gameweek which you want to evaluate results on
 
     Returns:
         A dataframe containing predictions for all current premier league players for next gameweek
@@ -317,8 +325,8 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str, used_features: list)
     
     model = pickle.load(open(model_name,'rb'))
     
-    #variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     variables_to_keep = used_features
+    #variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     pred_df = pred_df[variables_to_keep]
     
     X_eval = pred_df.drop(["name"], axis = 1)
@@ -330,6 +338,31 @@ def run_predictions(pred_df: pd.DataFrame, model_name: str, used_features: list)
     
     
     output_df = output_df.sort_values(by=["predicted_points"], ascending=False)
+    
+    if session == "test": # Adding the actual points from the specified gameweek history 
+        db_data = get_data()
+        data = db_data[0]
+        current_players = data[['id']]
+        current_players = tuple(current_players['id'])
+        
+        df = pd.DataFrame()
+        
+        for player in current_players:
+            player_gw = get_gameweek_history(player)
+            player_gw['id'] = player
+            df = df.append(player_gw)
+            
+        df = df.rename(columns={'total_points': 'event_points', 'value': 'now_cost'})
+        extra = data[['id', 'team', 'web_name']]
+        df = pd.merge(df, extra, how='left', on='id')
+        df = df.rename(columns={'web_name': 'name', 'event_points': 'actual_gw_points'})
+        
+        df = df.loc[df['round'] == test_gw]
+        
+        keeping_columns = ["name", "actual_gw_points", "round"]
+        df = df[keeping_columns]
+        
+        output_df = output_df.merge(df, how="left", on="name")
     
     # saving the dataframe to CSV for later review after the next GW
     print('Saving model...')

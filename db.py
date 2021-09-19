@@ -39,7 +39,7 @@ def get_gameweek_history(player_id):
         player_id: The player_id of the player
 
     Returns:
-        A dataframe containing gameweek stats for each gameweek in the current season
+        A dataframe containing gameweek stats for each gameweek so far in the current season
     """
     # send GET request to
     # https://fantasy.premierleague.com/api/element-summary/{PID}/
