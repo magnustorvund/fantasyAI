@@ -16,8 +16,9 @@ tqdm.pandas()
        - Add more time series features to catch minor changes which can signal that a better form is on its way (increase in goal creations, goals/chance ratio etc. - possibly use other data sources) 
        
        
-       # To dos 23.09.21: 
+       # To dos 23.09.21 - Theme: Increase the trend signal to spot new transfers:
        - Include gw transfers in - gw transfers out
+       - Include change in selected by % difference from the last 3 games
        - Balance the dataset (there is a huge amount of 0 points which needs to be dealt with)
 """
 
