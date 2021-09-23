@@ -15,6 +15,10 @@ tqdm.pandas()
        - Add a feature "ict_index_change_lag1", where the change in ict_index from gw(current-2) to gw(current-1)
        - Add more time series features to catch minor changes which can signal that a better form is on its way (increase in goal creations, goals/chance ratio etc. - possibly use other data sources) 
        
+       
+       # To dos 23.09.21: 
+       - Include gw transfers in - gw transfers out
+       - Balance the dataset (there is a huge amount of 0 points which needs to be dealt with)
 """
 
 # GLOBAL VARIABLES
@@ -414,6 +418,7 @@ def create_evaluation_data2(session: str, gameweek_to_evaluate: int = 4):
     output_df = output_df[final_variables_to_keep]
     
     output_df = output_df.reset_index(drop=True)
+    output_df = output_df.drop_duplicates()
     
     return output_df
 
