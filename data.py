@@ -9,17 +9,23 @@ import copy
 tqdm.pandas()
 
 """
-    # TO DO:
-       - Transform minutes to avergage minutes per match so far this season both for evaluation and create_training_data (average of up to the last 5 matches)
-       - Transform evaluation data ict_index, bps, and now cost to current (filter out the rows where gw or round == current gameweek)
-       - Add a feature "ict_index_change_lag1", where the change in ict_index from gw(current-2) to gw(current-1)
-       - Add more time series features to catch minor changes which can signal that a better form is on its way (increase in goal creations, goals/chance ratio etc. - possibly use other data sources) 
+    TO DOS:
+       - Add more time series features to catch minor changes which can signal that a better form is on its way 
+         (increase in goal creations, goals/chance ratio etc. - possibly use other data sources) 
        
-       
-       # To dos 23.09.21 - Theme: Increase the trend signal to spot new transfers:
+       # To dos fall 2021 - Theme: Increase the trend signal to spot performers for next gameweek:
        - Include gw transfers in - gw transfers out
        - Include change in selected by % difference from the last 3 games
        - Balance the dataset (there is a huge amount of 0 points which needs to be dealt with)
+       - Incorporate NLP sentiment features where twitter data (through hashtags, and specific accounts), 
+         fantasy football blogs, expert blogs, reddit and other news sources is scraped and analysed from football experts
+       - Incorporate a good odds API and extract features from it
+       - Possibly make three separate predictors which generate features into the light GBM model (statistics predictor, twitter predictor, article predictor)
+       - Divide the statistics predictor into four different models -> GK, DEF, MID, ATT
+       - Incorporate a better model for skewed datasets on statistics (i.e. Bayesian Q-Learning)
+         see https://arxiv.org/ftp/arxiv/papers/1912/1912.07441.pdf for more inspiration
+         For Bayesian Q-learning model see: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.388.5026&rep=rep1&type=pdf
+         
 """
 
 # GLOBAL VARIABLES
