@@ -159,7 +159,7 @@ def objective(trial: optuna.Trial, X, y):
 
     }
     
-    cat_feature =  ["fdr"]
+    #cat_feature =  ["fdr"]
 
     cv = KFold(n_splits=5, shuffle=True, random_state=1121218)
 
@@ -181,7 +181,7 @@ def objective(trial: optuna.Trial, X, y):
             eval_set=[(X_test, y_test)],
             eval_metric="l2", # Using Mean Squared Error as a metric (l2 in light GBM terms)
             early_stopping_rounds=100,
-            categorical_feature=cat_feature,
+            #categorical_feature=cat_feature,
             callbacks=[
                 LightGBMPruningCallback(trial, "l2")
             ],  # Add a pruning callback
@@ -210,7 +210,7 @@ def run_hyperparameter_tuning(df: pd.DataFrame):
     """
     
     # df: create_training_set() output
-    variables_to_keep = ['name', 'ict_index', 'bps', 'fdr', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     df = df[variables_to_keep]
     # 0. Load and prepare training data
     X = df.drop(["event_points"], axis = 1)
@@ -255,11 +255,11 @@ def run_model_training(best_hyperparams, df):
     """
     best_hyperparams["metric"] = "l2"
     
-    cat_features = ["fdr"]
+    #cat_features = ["fdr"]
     
     split = 0.2
     
-    variables_to_keep = ['ict_index', 'bps', 'now_cost', 'fdr', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    variables_to_keep = ['ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     full_df = df[variables_to_keep]
         
     train_df, test_df = train_test_split(full_df, test_size=split)
@@ -271,8 +271,8 @@ def run_model_training(best_hyperparams, df):
     X_test = test_df.drop(["event_points"], axis = 1)
     
     # Create LGB dataset:
-    lgb_train = lgb.Dataset(X_train, y_train, categorical_feature=cat_features) # remove categor
-    lgb_test = lgb.Dataset(X_test, y_test, reference=lgb_train, categorical_feature=cat_features)
+    lgb_train = lgb.Dataset(X_train, y_train) #categorical_feature=cat_features
+    lgb_test = lgb.Dataset(X_test, y_test, reference=lgb_train) #categorical_feature=cat_features
     
     # Dictionary for train MSE results
     train_results = {}

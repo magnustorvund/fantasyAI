@@ -304,6 +304,110 @@ def create_training_data(season: str):
     return main_df
 
 
+def create_large_training_data():
+    """ 
+    MVP variables: 
+    - id_player
+
+    
+    Player form:
+    - ict_index
+    - bonus (so far this season)
+    - minutes (played so far this season)
+    - points_per_game
+    - form
+
+    Player ability:
+    the highest ict_index points of the previous last 3 seasons (to avoid more or less the same number compared to averages)
+    if player hasn't played in PL previously then transform now_cost into a proxy ict_index number
+
+    Fixture difficulty:
+    - team (id on the team that the player currently plays for - categorical variable)
+    - FD (use the team diffictuly rating for the next fixture for the team id that the player belongs to)
+
+    """
+    print("create large training data version 0.2")
+    # Import data from previous seasons
+    wdPATH = os.getcwd()
+
+    seasons = ["2020-21", "2019-20", "2018-19", "2017-18", "2016-17"]
+    utf8_seasons = ["2020-21", "2019-20"]
+
+    merged_gw_df = pd.DataFrame()
+
+    # Check if this works
+    for season in seasons:
+        player_gw = pd.DataFrame()
+        if season in utf8_seasons:
+            with open(os.path.join(wdPATH, "..", "data_files", season, "gws", "merged_gw.csv"), encoding='UTF-8') as file:
+                player_gw = pd.read_csv(file)
+            print(f"season added is: {season}, in UTF-8!")
+        else:
+            with open(os.path.join(wdPATH, "..", "data_files", season, "gws", "merged_gw.csv"),) as file:
+                player_gw = pd.read_csv(file)
+            print(f"season added is: {season}, in other!")
+        
+    
+        player_gw = player_gw.rename(columns={'value': 'now_cost', 'total_points': 'event_points'})
+        variables_to_keep = ['name', 'ict_index', 'bps', 'minutes', 'now_cost', 'event_points', 'round'] # should be able to change this in a config file
+        players_df = player_gw[variables_to_keep]
+        final_player_df = copy.copy(players_df)
+        final_player_df['season'] = season
+        
+        merged_gw_df = merged_gw_df.append(final_player_df)
+    
+    
+    # 4. Remove team and team_id as a feature to predict on to create a more generalized dataset to train on. 
+    variables_to_keep = ['name','ict_index', 'bps', 'minutes', 'now_cost', 'round', 'event_points'] # should be able to change this in a config file
+    main_df = merged_gw_df[variables_to_keep]
+    main_df = copy.copy(main_df)
+    # Drop duplicates as there are a few duplicates in round 35
+    main_df.drop_duplicates(subset=["name", "round"], keep="first", inplace=True)
+    
+    enter_df = copy.copy(main_df)
+    enter_df = enter_df.sort_values(by=['name', 'round'])
+
+    # 5. Adding updated average minutes played throughout the season:
+    output_df = enter_df.groupby(['name'])['minutes'].expanding().mean().reset_index(0)
+    output_df['index_id'] = output_df.index
+    enter_df['index_id'] = enter_df.index
+    enter_df = enter_df.merge(output_df, how="left", on=["index_id"])
+    enter_df = enter_df.rename(columns={'name_x': 'name', 'minutes_x': 'minutes', 'minutes_y': 'avg_minutes'})
+
+    # 7. shift event_points to create a lagged label (as the values on ict_index etc. comes as a result of the label in a done gameweek):
+    input_df = pd.DataFrame()
+    output_df = pd.DataFrame()
+    namelist = list()
+
+    print("Creating shifted time-series features")
+    for name in enter_df['name']:
+        if name not in namelist:
+            namelist.append(name)
+            input_df = enter_df
+            input_df = input_df.loc[input_df['name'] == name]
+            input_df = copy.copy(input_df)
+            input_df['event_points'] = input_df['event_points'].shift(1)
+            output_df = output_df.append(input_df)
+    
+    # 6. Adding ict_index and bps change
+    enter_df['ict_index_change'] = 0
+    enter_df['bps_change'] = 0
+    
+    output_df['ict_index_change'] = output_df["ict_index"].diff(periods=1)
+    output_df['bps_change'] = output_df["bps"].diff(periods=1)
+    
+    output_df = output_df.dropna()
+    
+    columns_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    main_df = output_df[columns_to_keep]
+    
+    main_df = main_df.reset_index(drop=True)
+    
+    print("training set made!")
+    
+    return main_df
+
+
 def create_evaluation_data2(session: str, gameweek_to_evaluate: int = 4):
     """ 
     session (str): "test" or "pred"
@@ -421,11 +525,11 @@ def create_evaluation_data2(session: str, gameweek_to_evaluate: int = 4):
     
     output_df = output_df.rename(columns={'web_name': 'name'})
     
-    final_variables_to_keep = ['name', 'ict_index', 'bps', 'fdr', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
+    final_variables_to_keep = ['name', 'ict_index', 'bps', 'now_cost', 'avg_minutes','ict_index_change', 'bps_change', 'event_points']
     output_df = output_df[final_variables_to_keep]
     
     output_df = output_df.reset_index(drop=True)
-    output_df = output_df.drop_duplicates()
+    output_df = output_df.drop_duplicates(keep='last')
     
     return output_df
 
