@@ -137,15 +137,15 @@ def objective(trial: optuna.Trial, X, y):
     Returns:
         MSE scores from the 5-fold cross validation
     """
-    
+    print("objective version 2.2 Fast")
     param_grid = {
         #         "device_type": trial.suggest_categorical("device_type", ['gpu']),
         "n_estimators": trial.suggest_categorical("n_estimators", [10000]),
-        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.05), # adjust this for speed increase
-        "num_leaves": trial.suggest_int("num_leaves", 20, 3000, step=20),
+        "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.05), # adjust this for speed increase
+        "num_leaves": trial.suggest_int("num_leaves", 255, 255),
         "max_depth": trial.suggest_int("max_depth", 3, 12),
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 200, 10000, step=100),
-        "max_bin": trial.suggest_int("max_bin", 200, 300),
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 20, 100, step=20),
+        "max_bin": trial.suggest_int("max_bin", 200, 300, step = 50),
         "lambda_l1": trial.suggest_int("lambda_l1", 0, 100, step=5),
         "lambda_l2": trial.suggest_int("lambda_l2", 0, 100, step=5),
         "min_gain_to_split": trial.suggest_float("min_gain_to_split", 0, 15),
