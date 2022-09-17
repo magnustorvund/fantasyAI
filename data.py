@@ -16,7 +16,7 @@ tqdm.pandas()
        # To dos fall 2021 - Theme: Increase the trend signal to spot performers for next gameweek:
        - Include gw transfers in - gw transfers out
        - Include change in selected by % difference from the last 3 games
-       - Balance the dataset (there is a huge amount of 0 points which needs to be dealt with)
+       - Penalize low scores -> Give gw_points below 95th percentile a value -100 for instance (there is a huge amount of 0 points which needs to be dealt with)
        - Incorporate NLP sentiment features where twitter data (through hashtags, and specific accounts), 
          fantasy football blogs, expert blogs, reddit and other news sources is scraped and analysed from football experts
        - Incorporate a good odds API and extract features from it

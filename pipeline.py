@@ -253,8 +253,8 @@ def run_model_training(best_hyperparams, df):
     Returns:
         The model and test MSE scores
     """
-    best_hyperparams["metric"] = "l2"
     
+    best_hyperparams["metric"] = "l2"
     #cat_features = ["fdr"]
     
     split = 0.2
